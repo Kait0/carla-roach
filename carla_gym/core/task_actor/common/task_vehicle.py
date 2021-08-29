@@ -84,7 +84,7 @@ class TaskVehicle(object):
     def _trace_route_to_global_target(self):
         current_location = self.vehicle.get_location()
         for tt in self._target_transforms:
-            next_target_location = tt.location
+            next_target_location = tt#.location #NOTE for the CARLA leaderboard points the rotation was already removed
             route_trace = self._planner.trace_route(current_location, next_target_location)
             self._global_route += route_trace
             self._route_length += self._compute_route_length(route_trace)

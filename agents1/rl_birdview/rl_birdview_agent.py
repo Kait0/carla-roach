@@ -13,6 +13,8 @@ from srunner.scenariomanager.carla_data_provider import CarlaDataProvider
 from leaderboard.autoagents.autonomous_agent import AutonomousAgent
 from leaderboard.scenarios.route_scenario import convert_transform_to_location
 from planner import RoutePlanner
+import gym
+
 
 
 
@@ -74,6 +76,7 @@ class RlBirdviewAgent(AutonomousAgent):
         self._wrapper_kwargs = self.cfg['env_wrapper']['kwargs']
 
         self._om_handler = ObsManagerHandler({0:self._obs_configs})
+        self._acc_as_action = self._wrapper_kwargs['acc_as_action']
         self.initialized = False
 
     def set_global_plan(self, global_plan_gps, global_plan_world_coord):
@@ -98,18 +101,59 @@ class RlBirdviewAgent(AutonomousAgent):
 
         self._spawn_transforms = self._ev_handler._get_spawn_points(self._ev_handler._map)
 
-        #TODO add waypoints as second parameter
-        self._ev_handler.ego_vehicles[0] = TaskVehicle(self._vehicle, [], self._spawn_transforms, False)
+        self.route = CarlaDataProvider.get_original_trajectory()
+        self._ev_handler.ego_vehicles[0] = TaskVehicle(self._vehicle, self.route, self._spawn_transforms, False)
 
         #ev_spawn_locations = self._ev_handler.reset({0:test})
 
         self._om_handler.reset(self._ev_handler.ego_vehicles)
+
+        state_spaces = []
+        if 'speed' in self.cfg['obs_configs']:
+            state_spaces.append(self._om_handler.observation_space[0]['speed']['speed_xy'])
+        if 'speed_limit' in self.cfg['obs_configs']:
+            state_spaces.append(self._om_handler.observation_space[0]['control']['speed_limit'])
+        if 'control' in self.cfg['obs_configs']:
+            state_spaces.append(self._om_handler.observation_space[0]['control']['throttle'])
+            state_spaces.append(self._om_handler.observation_space[0]['control']['steer'])
+            state_spaces.append(self._om_handler.observation_space[0]['control']['brake'])
+            state_spaces.append(self._om_handler.observation_space[0]['control']['gear'])
+        if 'acc_xy' in self.cfg['obs_configs']:
+            state_spaces.append(self._om_handler.observation_space[0]['velocity']['acc_xy'])
+        if 'vel_xy' in self.cfg['obs_configs']:
+            state_spaces.append(self._om_handler.observation_space[0]['velocity']['vel_xy'])
+        if 'vel_ang_z' in self.cfg['obs_configs']:
+            state_spaces.append(self._om_handler.observation_space[0]['velocity']['vel_ang_z'])
+
+        state_low = np.concatenate([s.low for s in state_spaces])
+        state_high = np.concatenate([s.high for s in state_spaces])
+
+        self.observation_space = gym.spaces.Dict(
+            {'state': gym.spaces.Box(low=state_low, high=state_high, dtype=np.float32),
+             'birdview': self._om_handler.observation_space[0]['birdview']['masks']})
+
+        if self._acc_as_action:
+            # act: acc(throttle/brake), steer
+            self.action_space = gym.spaces.Box(low=np.array([-1, -1]), high=np.array([1, 1]), dtype=np.float32)
+        else:
+            # act: throttle, steer, brake
+            self.action_space = gym.spaces.Box(low=np.array([0, -1, 0]), high=np.array([1, 1, 1]), dtype=np.float32)
+        
+        if self._policy is None:
+            self._policy = self._policy_class(self.observation_space, self.action_space, **self._policy_kwargs).to('cuda')
+
+        self._policy,self._train_cfg['kwargs'] = self._policy.load(r'C:\Users\Admin\Ordnung\Studium\Master_Informatik\Masterarbeit\carla-roach\agents1\rl_birdview\ckpt_11833344.pth')
+        #TODO load policy weights
+        self._policy = self._policy.eval()
+        
         self.initialized = True
 
 
     def run_step(self, input_data, timestamp):
         if(self.initialized == False):
             self.local_init()
+
+        _ = self._ev_handler.ego_vehicles[0]._truncate_global_route_till_local_target()
 
         obs_dict = self._om_handler.get_observation(timestamp)
         input_data = obs_dict[0]

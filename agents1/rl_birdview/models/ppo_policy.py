@@ -224,6 +224,10 @@ class PpoPolicy(nn.Module):
         else:
             device = 'cpu'
         saved_variables = th.load(path, map_location=device)
+        
+        #NOTE for the leaderboard I had to reaname agents to agent1
+        saved_variables['policy_init_kwargs']['features_extractor_entry_point'] = 'agents1.rl_birdview.models.torch_layers:XtMaCNN'
+        saved_variables['policy_init_kwargs']['distribution_entry_point']       = 'agents1.rl_birdview.models.distributions:BetaDistribution'
         # Create policy object
         model = cls(**saved_variables['policy_init_kwargs'])
         # Load weights
