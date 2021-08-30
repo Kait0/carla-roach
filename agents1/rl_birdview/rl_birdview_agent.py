@@ -11,9 +11,9 @@ from carla_gym.core.task_actor.ego_vehicle.ego_vehicle_handler import EgoVehicle
 from carla_gym.core.task_actor.common.task_vehicle import TaskVehicle
 from srunner.scenariomanager.carla_data_provider import CarlaDataProvider
 from leaderboard.autoagents.autonomous_agent import AutonomousAgent
-from leaderboard.scenarios.route_scenario import convert_transform_to_location
-from planner import RoutePlanner
+from carla_gym.utils.traffic_light import TrafficLightHandler
 import gym
+import os
 
 
 
@@ -35,7 +35,6 @@ class RlBirdviewAgent(AutonomousAgent):
     def setup(self, path_to_conf_file):
         self.cfg = OmegaConf.load(path_to_conf_file)
 
-        #TODO wb_run is none so we need to create the policy.
         # load checkpoint from wandb
         if self.cfg.wb_run_path is not None:
             api = wandb.Api()
@@ -79,27 +78,17 @@ class RlBirdviewAgent(AutonomousAgent):
         self._acc_as_action = self._wrapper_kwargs['acc_as_action']
         self.initialized = False
 
-    def set_global_plan(self, global_plan_gps, global_plan_world_coord):
-        # set route to be followed
-        super().set_global_plan(global_plan_gps, global_plan_world_coord)
-
-        # route in the form of locations, as required by the outside route lane tester
-        self.route = convert_transform_to_location(global_plan_world_coord)
-
-        # route in the form of transforms, as required by the route planners
-        self._plan_HACK = global_plan_world_coord
-        self._plan_gps_HACK = global_plan_gps
-
     def local_init(self):
-        self._route_planner = RoutePlanner(3.0, 50.0)
-        self._route_planner.set_route(self._plan_gps_HACK, True)
-
         self._client = CarlaDataProvider.get_client()
 
         self._ev_handler = EgoVehicleHandler(self._client, None, None)
         self._vehicle = CarlaDataProvider.get_hero_actor()
 
         self._spawn_transforms = self._ev_handler._get_spawn_points(self._ev_handler._map)
+
+        self._world = CarlaDataProvider.get_world()
+        # register traffic lights
+        TrafficLightHandler.reset(self._world)
 
         self.route = CarlaDataProvider.get_original_trajectory()
         self._ev_handler.ego_vehicles[0] = TaskVehicle(self._vehicle, self.route, self._spawn_transforms, False)
@@ -142,8 +131,8 @@ class RlBirdviewAgent(AutonomousAgent):
         if self._policy is None:
             self._policy = self._policy_class(self.observation_space, self.action_space, **self._policy_kwargs).to('cuda')
 
-        self._policy,self._train_cfg['kwargs'] = self._policy.load(r'C:\Users\Admin\Ordnung\Studium\Master_Informatik\Masterarbeit\carla-roach\agents1\rl_birdview\ckpt_11833344.pth')
-        #TODO load policy weights
+        dir_path = os.path.dirname(os.path.realpath(__file__))
+        self._policy,self._train_cfg['kwargs'] = self._policy.load(dir_path + r'\ckpt_11833344.pth')
         self._policy = self._policy.eval()
         
         self.initialized = True
@@ -159,6 +148,12 @@ class RlBirdviewAgent(AutonomousAgent):
         input_data = obs_dict[0]
 
         input_data = copy.deepcopy(input_data)
+
+        #Debug
+        #from matplotlib import pyplot as plt
+        #plt.ion()
+        #plt.imshow(input_data['birdview']['rendered'])
+        #plt.show()
 
         policy_input = self._wrapper_class.process_obs(input_data, self._wrapper_kwargs['input_states'], train=False)
 
