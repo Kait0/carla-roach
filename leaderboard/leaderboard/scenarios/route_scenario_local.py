@@ -219,6 +219,7 @@ class RouteScenario(BasicScenario):
 
         # prepare route's trajectory (interpolate and add the GPS route)
         gps_route, route = interpolate_trajectory(world, config.trajectory)
+        CarlaDataProvider.set_original_trajectory(config.trajectory)  # NOTE saves the original trajectory of the .xml route file for Roach compatibility
 
         potential_scenarios_definitions, _ = RouteParser.scan_route_for_scenarios(
             config.town, route, world_annotations)

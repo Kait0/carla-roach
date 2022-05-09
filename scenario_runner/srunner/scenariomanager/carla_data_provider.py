@@ -61,6 +61,7 @@ class CarlaDataProvider(object):  # pylint: disable=too-many-public-methods
     _ego_vehicle_route = None
     _traffic_manager_port = 8000
     _rng = random.RandomState(2000)
+    _original_trajectory = None  # NOTE added for compatibility with Roach
 
     @staticmethod
     def register_actor(actor):
@@ -397,6 +398,15 @@ class CarlaDataProvider(object):  # pylint: disable=too-many-public-methods
         Note: Can be None
         """
         return CarlaDataProvider._ego_vehicle_route
+
+    # NOTE used to save the points specified in the .xml route files for compatibility with roach
+    @staticmethod
+    def set_original_trajectory(route):
+        CarlaDataProvider._original_trajectory = route
+
+    @staticmethod
+    def get_original_trajectory():
+        return CarlaDataProvider._original_trajectory
 
     @staticmethod
     def generate_spawn_points():
