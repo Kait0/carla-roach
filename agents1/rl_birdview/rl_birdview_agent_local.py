@@ -134,7 +134,7 @@ class RlBirdviewAgent(autonomous_agent_local.AutonomousAgent):
             self._policy = self._policy_class(self.observation_space, self.action_space, **self._policy_kwargs).to('cuda')
 
         dir_path = os.path.dirname(os.path.realpath(__file__))
-        self._policy,self._train_cfg['kwargs'] = self._policy.load(dir_path + r'\ckpt_11833344.pth')
+        self._policy,self._train_cfg['kwargs'] = self._policy.load(dir_path + r'/ckpt_11833344.pth')
         self._policy = self._policy.eval()
         
         self.initialized = True

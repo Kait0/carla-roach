@@ -43,6 +43,7 @@ def create_run_eval_bash(bash_save_dir, results_save_dir, route_path, iter, rout
         rsh.write('''\
 export CARLA_ROOT=/mnt/qb/work/geiger/bjaeger25/CARLA
 export CARLA_SERVER=${CARLA_ROOT}/CarlaUE4.sh
+export PYTHONPATH=$PYTHONPATH:/mnt/qb/work/geiger/bjaeger25/carla-roach
 export PYTHONPATH=$PYTHONPATH:${CARLA_ROOT}/PythonAPI
 export PYTHONPATH=$PYTHONPATH:${CARLA_ROOT}/PythonAPI/carla
 export PYTHONPATH=$PYTHONPATH:${CARLA_ROOT}/PythonAPI/carla/dist/carla-0.9.10-py3.7-linux-x86_64.egg
